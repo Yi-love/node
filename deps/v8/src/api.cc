@@ -7414,7 +7414,11 @@ Isolate* Isolate::GetCurrent() {
   return reinterpret_cast<Isolate*>(isolate);
 }
 
-
+/**
+ * [Isolate::New 创建v8引擎实例]
+ * @param  params [description]
+ * @return        [description]
+ */
 Isolate* Isolate::New(const Isolate::CreateParams& params) {
   i::Isolate* isolate = new i::Isolate(false);
   Isolate* v8_isolate = reinterpret_cast<Isolate*>(isolate);
@@ -7462,7 +7466,9 @@ Isolate* Isolate::New(const Isolate::CreateParams& params) {
   return v8_isolate;
 }
 
-
+/**
+ * [Isolate::Dispose 销毁]
+ */
 void Isolate::Dispose() {
   i::Isolate* isolate = reinterpret_cast<i::Isolate*>(this);
   if (!Utils::ApiCheck(!isolate->IsInUse(),

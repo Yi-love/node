@@ -193,17 +193,18 @@ bool v8_initialized = false;
 static double prog_start_time;
 static bool debugger_running;
 static uv_async_t dispatch_debug_messages_async;
-
+//互斥锁
 static Mutex node_isolate_mutex;
 static v8::Isolate* node_isolate;
 
 static struct {
+  //使用v8 js引擎
 #if NODE_USE_V8_PLATFORM
   void Initialize(int thread_pool_size) {
     platform_ = v8::platform::CreateDefaultPlatform(thread_pool_size);
     V8::InitializePlatform(platform_);
   }
-
+  //调度空闲线程从消息队列里处理等待执行事件
   void PumpMessageLoop(Isolate* isolate) {
     v8::platform::PumpMessageLoop(platform_, isolate);
   }
@@ -223,6 +224,7 @@ static struct {
   }
 
   v8::Platform* platform_;
+//不使用v8 js引擎  比如微软打算也接进来
 #else  // !NODE_USE_V8_PLATFORM
   void Initialize(int thread_pool_size) {}
   void PumpMessageLoop(Isolate* isolate) {}
@@ -902,11 +904,15 @@ Local<Value> UVException(Isolate* isolate,
 
 
 // Look up environment variable unless running as setuid root.
+// 查看环境变量 , 在设置了uid的情况下，
 inline const char* secure_getenv(const char* key) {
 #ifndef _WIN32
+  //geteuid()用来取得执行目前进程有效的用户识别码。
+  //getuid()用来取得执行目前进程的用户识别码。
   if (getuid() != geteuid() || getgid() != getegid())
     return nullptr;
 #endif
+  //获取环境变量
   return getenv(key);
 }
 
@@ -3404,7 +3410,11 @@ static void RawDebug(const FunctionCallbackInfo<Value>& args) {
   fflush(stderr);
 }
 
-
+/**
+ * [LoadEnvironment 加载node.js，开始node.js旅程]
+ * Jin 2016-12-29
+ * @param env [description]
+ */
 void LoadEnvironment(Environment* env) {
   HandleScope handle_scope(env->isolate());
 
@@ -3418,6 +3428,7 @@ void LoadEnvironment(Environment* env) {
   // Execute the lib/internal/bootstrap_node.js file which was included as a
   // static C string in node_natives.h by node_js2c.
   // 'internal_bootstrap_node_native' is the string containing that source code.
+  // 加载Node.js的js入口文件boot_strap.js
   Local<String> script_name = FIXED_ONE_BYTE_STRING(env->isolate(),
                                                     "bootstrap_node.js");
   Local<Value> f_value = ExecuteString(env, MainSource(env), script_name);
@@ -3456,6 +3467,7 @@ void LoadEnvironment(Environment* env) {
 
   // Expose the global object as a property on itself
   // (Allows you to set stuff on `global` from anywhere in JavaScript.)
+  // 把global加到全局
   global->Set(FIXED_ONE_BYTE_STRING(env->isolate(), "global"), global);
 
   // Now we call 'f' with the 'process' variable that we've built up with
@@ -3465,7 +3477,10 @@ void LoadEnvironment(Environment* env) {
   // We start the process this way in order to be more modular. Developers
   // who do not like how bootstrap_node.js sets up the module system but do
   // like Node's I/O bindings may want to replace 'f' with their own function.
+  // 获取process
   Local<Value> arg = env->process_object();
+  //执行boot_strap.js  arg === process
+  //执行boot_strap，并把process传递进去
   f->Call(Null(env->isolate()), 1, &arg);
 }
 
@@ -3708,7 +3723,7 @@ static void ParseArgs(int* argc,
         exit(9);
       }
       args_consumed += 1;
-      local_preload_modules[preload_module_count++] = module;
+      local_preload_modules[preload_module_count++] = module;//预加载模块数组
     } else if (strcmp(arg, "--check") == 0 || strcmp(arg, "-c") == 0) {
       syntax_check_only = true;
     } else if (strcmp(arg, "--interactive") == 0 || strcmp(arg, "-i") == 0) {
@@ -3891,7 +3906,9 @@ static void EnableDebugSignalHandler(int signo) {
   uv_sem_post(&debug_semaphore);
 }
 
-
+/**
+ * 注册信号处理函数
+ */
 void RegisterSignalHandler(int signal,
                            void (*handler)(int signal),
                            bool reset_handler) {
@@ -3904,6 +3921,7 @@ void RegisterSignalHandler(int signal,
   // Work around the issue by manually setting SIG_DFL in the signal handler
   sa.sa_flags = reset_handler ? SA_RESETHAND : 0;
 #endif
+  //将所有信号加入至信号集
   sigfillset(&sa.sa_mask);
   CHECK_EQ(sigaction(signal, &sa, nullptr), 0);
 }
@@ -4142,15 +4160,23 @@ static void DebugEnd(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-
+/**
+ * [PlatformInit 平台初始化]
+ * Jin 2016-12-29
+ * 针对 __POSIX__
+ */
 inline void PlatformInit() {
 #ifdef __POSIX__
   sigset_t sigmask;
+  //设置信号集
   sigemptyset(&sigmask);
+  //添加信号
   sigaddset(&sigmask, SIGUSR1);
+  //多线程设置信号屏蔽集
   const int err = pthread_sigmask(SIG_SETMASK, &sigmask, nullptr);
 
   // Make sure file descriptors 0-2 are valid before we start logging anything.
+  // 保证 stdin/stdout/stderr 有效
   for (int fd = STDIN_FILENO; fd <= STDERR_FILENO; fd += 1) {
     struct stat ignored;
     if (fstat(fd, &ignored) == 0)
@@ -4159,13 +4185,23 @@ inline void PlatformInit() {
     // have to special-case EINTR, fstat() is not interruptible.
     if (errno != EBADF)
       ABORT();
-    if (fd != open("/dev/null", O_RDWR))
+    if (fd != open("/dev/null", O_RDWR)) //写入/dev/null的东西会被系统丢掉
       ABORT();
   }
 
   CHECK_EQ(err, 0);
 
   // Restore signal dispositions, the parent process may have changed them.
+  // 查询或设置信号处理方式
+  /**
+   * struct sigaction
+    {
+        void (*sa_handler) (int);
+        sigset_t sa_mask;
+        int sa_flags;
+        void (*sa_restorer) (void);
+    }
+   */
   struct sigaction act;
   memset(&act, 0, sizeof(act));
 
@@ -4173,17 +4209,30 @@ inline void PlatformInit() {
   // it evaluates to 32, 34 or 64, depending on whether RT signals are enabled.
   // Counting up to SIGRTMIN doesn't work for the same reason.
   for (unsigned nr = 1; nr < kMaxSignal; nr += 1) {
-    if (nr == SIGKILL || nr == SIGSTOP)
+    if (nr == SIGKILL || nr == SIGSTOP)//指定SIGKILL 和SIGSTOP 以外的所有信号
       continue;
+    //sa_handler 代表新的信号处理函数
+    //SIG_DFL：默认信号处理程序
+    //SIG_IGN：忽略信号的处理程序
+    //意在解决SIGPIPE信号关闭进程的问题
     act.sa_handler = (nr == SIGPIPE) ? SIG_IGN : SIG_DFL;
     CHECK_EQ(0, sigaction(nr, &act, nullptr));
   }
-
+  //2          SIGINT    进程终端，CTRL+C
+  //15         SIGTERM   请求中断
   RegisterSignalHandler(SIGINT, SignalExit, true);
   RegisterSignalHandler(SIGTERM, SignalExit, true);
 
   // Raise the open file descriptor limit.
+  // 限制打开文件描述符的个数
+  /**
+   * struct rlimit {
+      rlim_t rlim_cur;
+      rlim_t rlim_max;
+      };
+   */
   struct rlimit lim;
+  // RLIMIT_NOFILE(一个进程能打开的最大文件 数，内核默认是1024)
   if (getrlimit(RLIMIT_NOFILE, &lim) == 0 && lim.rlim_cur != lim.rlim_max) {
     // Do a binary search for the limit.
     rlim_t min = lim.rlim_cur;
@@ -4205,24 +4254,38 @@ inline void PlatformInit() {
 #endif  // __POSIX__
 }
 
-
+/**
+ * [Init 初始化]
+ * Jin 2016-12-29
+ * @param argc      [参数个数]
+ * @param argv      [参数数组]
+ * @param exec_argc [description]
+ * @param exec_argv [description]
+ */
 void Init(int* argc,
           const char** argv,
           int* exec_argc,
           const char*** exec_argv) {
   // Initialize prog_start_time to get relative uptime.
+  // uv_default_loop 全局的事件循环
+  // 获取准确的时间
   prog_start_time = static_cast<double>(uv_now(uv_default_loop()));
 
   // Make inherited handles noninheritable.
+  // 尝试设置所有的代开的文件描述符为CLOEXEC
   uv_disable_stdio_inheritance();
 
   // init async debug messages dispatching
   // Main thread uses uv_default_loop
+  // 检测注册的异步debug消息队列 跨线程
   CHECK_EQ(0, uv_async_init(uv_default_loop(),
                             &dispatch_debug_messages_async,
                             DispatchDebugMessagesAsyncCallback));
+  //删除dispatch_debug_messages_async 的handle引用。不会对callback函数造成影响
+  //Un-reference the given handle. References are idempotent, that is,
+  //if a handle is not referenced calling this function again will have no effect.
   uv_unref(reinterpret_cast<uv_handle_t*>(&dispatch_debug_messages_async));
-
+//全球化
 #if defined(NODE_HAVE_I18N_SUPPORT)
   // Set the ICU casing flag early
   // so the user can disable a flag --foo at run-time by passing
@@ -4239,11 +4302,13 @@ void Init(int* argc,
 #endif
 
   // Allow for environment set preserving symlinks.
+  // 设置为1时,指示模块加载器保存符号链接在解决和缓存模块。
   if (auto preserve_symlinks = secure_getenv("NODE_PRESERVE_SYMLINKS")) {
     config_preserve_symlinks = (*preserve_symlinks == '1');
   }
 
   // Parse a few arguments which are specific to Node.
+  // 更新参数列表
   int v8_argc;
   const char** v8_argv;
   ParseArgs(argc, argv, exec_argc, exec_argv, &v8_argc, &v8_argv);
@@ -4252,6 +4317,7 @@ void Init(int* argc,
   // manually?  That would give us a little more control over its runtime
   // behavior but it could also interfere with the user's intentions in ways
   // we fail to anticipate.  Dillema.
+  // 生成过程v8分析器输出
   for (int i = 1; i < v8_argc; ++i) {
     if (strncmp(v8_argv[i], "--prof", sizeof("--prof") - 1) == 0) {
       v8_is_profiling = true;
@@ -4267,7 +4333,7 @@ void Init(int* argc,
     uv_loop_configure(uv_default_loop(), UV_LOOP_BLOCK_SIGNAL, SIGPROF);
   }
 #endif
-
+//全球化
 #if defined(NODE_HAVE_I18N_SUPPORT)
   if (icu_data_dir == nullptr) {
     // if the parameter isn't given, use the env variable.
@@ -4409,14 +4475,27 @@ void FreeEnvironment(Environment* env) {
   delete env;
 }
 
-
+/**
+ * [Start description]
+ * @param  isolate      [v8实例]
+ * @param  isolate_data [v8数据]
+ * @param  argc         [参数个数]
+ * @param  argv         [参数数组]
+ * @param  exec_argc    [description]
+ * @param  exec_argv    [description]
+ * @return              [description]
+ */
 inline int Start(Isolate* isolate, IsolateData* isolate_data,
                  int argc, const char* const* argv,
                  int exec_argc, const char* const* exec_argv) {
   HandleScope handle_scope(isolate);
+  //创建新的上下文
   Local<Context> context = Context::New(isolate);
+  //绑定上下文
   Context::Scope context_scope(context);
+  //帮v8数据放到context中
   Environment env(isolate_data, context);
+  //环境启动
   env.Start(argc, argv, exec_argc, exec_argv, v8_is_profiling);
 
   // Start debug agent when argv has --debug
@@ -4429,9 +4508,10 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
 
   {
     Environment::AsyncCallbackScope callback_scope(&env);
+    //环境加载，初始化boot_strap.js ,执行startup()
     LoadEnvironment(&env);
   }
-
+  //在事件第一个事件循环后，打印同步I/O的堆栈信息
   env.set_trace_sync_io(trace_sync_io);
 
   // Enable debugger
@@ -4442,12 +4522,13 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
     SealHandleScope seal(isolate);
     bool more;
     do {
+      //反复的询问任务是否完成
       v8_platform.PumpMessageLoop(isolate);
-      more = uv_run(env.event_loop(), UV_RUN_ONCE);
+      more = uv_run(env.event_loop(), UV_RUN_ONCE);//事件循环
 
-      if (more == false) {
+      if (more == false) { //没有事件活跃
         v8_platform.PumpMessageLoop(isolate);
-        EmitBeforeExit(&env);
+        EmitBeforeExit(&env); //准备退出
 
         // Emit `beforeExit` if the loop became alive either after emitting
         // event, or after running some callbacks.
@@ -4470,30 +4551,45 @@ inline int Start(Isolate* isolate, IsolateData* isolate_data,
 
   return exit_code;
 }
-
+/**
+ * [Start 开始执行]
+ * @param  event_loop [uv_default_loop()]
+ * @param  argc       [description]
+ * @param  argv       [description]
+ * @param  exec_argc  [description]
+ * @param  exec_argv  [description]
+ * @return            [description]
+ */
 inline int Start(uv_loop_t* event_loop,
                  int argc, const char* const* argv,
                  int exec_argc, const char* const* exec_argv) {
+  //v8引擎初始化参数
   Isolate::CreateParams params;
+  //容器
   ArrayBufferAllocator allocator;
   params.array_buffer_allocator = &allocator;
+//性能分析器
 #ifdef NODE_ENABLE_VTUNE_PROFILING
   params.code_event_handler = vTune::GetVtuneCodeEventHandler();
 #endif
-
+  //Isolate表示一个独立的v8引擎实例
+  //E:\git\node-master\deps\v8\src\api.cc#Isolate* Isolate::New
   Isolate* const isolate = Isolate::New(params);
   if (isolate == nullptr)
     return 12;  // Signal internal error.
-
+  //设置消息监听函数
   isolate->AddMessageListener(OnMessage);
+  //设置异常中断监听函数
   isolate->SetAbortOnUncaughtExceptionCallback(ShouldAbortOnUncaughtException);
+  //设置自动运行小任务
   isolate->SetAutorunMicrotasks(false);
+  //设置错误回调
   isolate->SetFatalErrorHandler(OnFatalError);
-
+  //跟踪堆对象分配堆快照。
   if (track_heap_objects) {
     isolate->GetHeapProfiler()->StartTrackingHeapObjects(true);
   }
-
+  //互斥锁
   {
     Mutex::ScopedLock scoped_lock(node_isolate_mutex);
     CHECK_EQ(node_isolate, nullptr);
@@ -4502,10 +4598,15 @@ inline int Start(uv_loop_t* event_loop,
 
   int exit_code;
   {
+    //锁住
     Locker locker(isolate);
+    //v8上下文
     Isolate::Scope isolate_scope(isolate);
+    //v8对象指针的数组
     HandleScope handle_scope(isolate);
+    //v8数据集
     IsolateData isolate_data(isolate, event_loop, allocator.zero_fill_field());
+    //执行node.js
     exit_code = Start(isolate, &isolate_data, argc, argv, exec_argc, exec_argv);
   }
 
@@ -4519,36 +4620,61 @@ inline int Start(uv_loop_t* event_loop,
 
   return exit_code;
 }
-
+/**
+ * [Start 开始执行node]
+ * Jin 2016-12-28
+ * @param  argc [参数个数]
+ * @param  argv [参数数组]
+ * @return      [description]
+ */
 int Start(int argc, char** argv) {
+  //程序退出后对终端状态进行还原
   atexit([] () { uv_tty_reset_mode(); });
+
+  //平台初始化
+  //主要是 信号处理 ，stdin/stdout/stderr , 文件描述符限制设置上线
   PlatformInit();
 
+  //检查参数个数
   CHECK_GT(argc, 0);
 
   // Hack around with the argv pointer. Used for process.title = "blah".
+  // Store the program arguments. Required for getting / setting the process title.
+  // 保存程序参数
+  // http://docs.libuv.org/en/v1.x/misc.html?highlight=uv_setup_args#c.uv_setup_args
   argv = uv_setup_args(argc, argv);
 
   // This needs to run *before* V8::Initialize().  The const_cast is not
   // optional, in case you're wondering.
+  // 初始化
+  // 1.参数列表更新
+  // 2.全球化
+  // 3.v8解析输出
   int exec_argc;
   const char** exec_argv;
   Init(&argc, const_cast<const char**>(argv), &exec_argc, &exec_argv);
 
+//应用程序可以使用OPENSSL来进行安全通信，避免窃听，同时确认另一端连接者的身份.
 #if HAVE_OPENSSL
+  //获取CA证书文件
   if (const char* extra = secure_getenv("NODE_EXTRA_CA_CERTS"))
+    //设置CA证书
     crypto::UseExtraCaCerts(extra);
 #ifdef NODE_FIPS_MODE
   // In the case of FIPS builds we should make sure
   // the random source is properly initialized first.
+  //FIPS构建的情况下,我们应该确保先初始化随机源。
   OPENSSL_init();
 #endif  // NODE_FIPS_MODE
   // V8 on Windows doesn't have a good source of entropy. Seed it from
   // OpenSSL's pool.
+  // 允许主机应用程序提供一个回调可作为随机数生成器的熵的来源。
   V8::SetEntropySource(crypto::EntropySource);
 #endif
 
+  //v8平台初始化 v8_thread_pool_size 为线程池大小默认4 new DefaultPlatform()
   v8_platform.Initialize(v8_thread_pool_size);
+  //v8初始化
   V8::Initialize();
   v8_initialized = true;
   const int exit_code =

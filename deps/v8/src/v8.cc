@@ -34,7 +34,10 @@ V8_DECLARE_ONCE(init_snapshot_once);
 
 v8::Platform* V8::platform_ = NULL;
 
-
+/**
+ * [V8::Initialize v8初始化]
+ * @return [description]
+ */
 bool V8::Initialize() {
   InitializeOncePerProcess();
   return true;
@@ -51,7 +54,10 @@ void V8::TearDown() {
   FlagList::ResetAllFlags();  // Frees memory held by string arguments.
 }
 
-
+/**
+ * [V8::InitializeOncePerProcessImpl v8初始化]
+ * Jin 2017-01-12
+ */
 void V8::InitializeOncePerProcessImpl() {
   FlagList::EnforceFlagImplications();
 
@@ -70,9 +76,10 @@ void V8::InitializeOncePerProcessImpl() {
     const char* filter_flag = "--turbo-filter=*";
     FlagList::SetFlagsFromString(filter_flag, StrLength(filter_flag));
   }
-
+  //初始化 node_os.cc
+  //主要是把操作系统方面的操作绑定到当前环境
   base::OS::Initialize(FLAG_random_seed, FLAG_hard_abort, FLAG_gc_fake_mmap);
-
+  //v8初始化
   Isolate::InitializeOncePerProcess();
 
   sampler::Sampler::SetUp();
@@ -89,7 +96,10 @@ void V8::InitializeOncePerProcess() {
   base::CallOnce(&init_once, &InitializeOncePerProcessImpl);
 }
 
-
+/**
+ * [V8::InitializePlatform 检测]
+ * @param platform [description]
+ */
 void V8::InitializePlatform(v8::Platform* platform) {
   CHECK(!platform_);
   CHECK(platform);

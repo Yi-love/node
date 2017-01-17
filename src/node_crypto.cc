@@ -790,7 +790,10 @@ void SecureContext::AddCRL(const FunctionCallbackInfo<Value>& args) {
   X509_CRL_free(crl);
 }
 
-
+/**
+ * [UseExtraCaCerts 设置CA根证书]
+ * @param file [description]
+ */
 void UseExtraCaCerts(const std::string& file) {
   extra_root_certs_file = file;
 }

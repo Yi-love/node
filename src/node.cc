@@ -3649,6 +3649,15 @@ static void PrintHelp() {
 //  * argv contains the arguments with node and V8 options filtered out.
 //  * exec_argv contains both node and V8 options and nothing else.
 //  * v8_argv contains argv[0] plus any V8 options
+/**
+ * [ParseArgs 解析参数列表进行参数分类]
+ * @param argc      [description]
+ * @param argv      [description]
+ * @param exec_argc [description]
+ * @param exec_argv [description]
+ * @param v8_argc   [description]
+ * @param v8_argv   [description]
+ */
 static void ParseArgs(int* argc,
                       const char** argv,
                       int* exec_argc,
@@ -4272,7 +4281,7 @@ void Init(int* argc,
   prog_start_time = static_cast<double>(uv_now(uv_default_loop()));
 
   // Make inherited handles noninheritable.
-  // 尝试设置所有的代开的文件描述符为CLOEXEC
+  // 尝试设置所有的代开的文件描述符为CLOEXEC:自动关闭
   uv_disable_stdio_inheritance();
 
   // init async debug messages dispatching
@@ -4632,7 +4641,7 @@ int Start(int argc, char** argv) {
   atexit([] () { uv_tty_reset_mode(); });
 
   //平台初始化
-  //主要是 信号处理 ，stdin/stdout/stderr , 文件描述符限制设置上线
+  //主要是 信号处理 ，stdin/stdout/stderr , 打开文件描述符限制设置上线
   PlatformInit();
 
   //检查参数个数

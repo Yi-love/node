@@ -489,8 +489,10 @@ class ContextifyScript : public BaseObject {
         new ContextifyScript(env, args.This());
 
     TryCatch try_catch(env->isolate());
+    //new vm.Script(source, {filename: filename, displayErrors: true});
+    //代码
     Local<String> code = args[0]->ToString(env->isolate());
-
+    //参数
     Local<Value> options = args[1];
     Local<String> filename = GetFilenameArg(env, options);
     Local<Integer> lineOffset = GetLineOffsetArg(env, options);
@@ -579,6 +581,7 @@ class ContextifyScript : public BaseObject {
     }
 
     // Do the eval within this context
+    // 执行js
     EvalMachine(env, timeout, display_errors, break_on_sigint, args,
                 &try_catch);
   }
@@ -813,7 +816,7 @@ class ContextifyScript : public BaseObject {
     return value->IsUndefined() ? defaultColumnOffset : value->ToInteger();
   }
 
-
+  //解释执行js
   static bool EvalMachine(Environment* env,
                           const int64_t timeout,
                           const bool display_errors,

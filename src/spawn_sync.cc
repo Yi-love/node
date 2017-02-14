@@ -416,7 +416,9 @@ Environment* SyncProcessRunner::env() const {
   return env_;
 }
 
-
+/**
+ * 执行子线程
+ */
 Local<Object> SyncProcessRunner::Run(Local<Value> options) {
   EscapableHandleScope scope(env()->isolate());
 
@@ -430,7 +432,10 @@ Local<Object> SyncProcessRunner::Run(Local<Value> options) {
   return scope.Escape(result);
 }
 
-
+/**
+ * [SyncProcessRunner::TryInitializeAndRunLoop 初始化和执行事件循环]
+ * @param options [description]
+ */
 void SyncProcessRunner::TryInitializeAndRunLoop(Local<Value> options) {
   int r;
 
@@ -634,7 +639,9 @@ void SyncProcessRunner::SetPipeError(int pipe_error) {
     pipe_error_ = pipe_error;
 }
 
-
+/**
+ * 创建js对象
+ */
 Local<Object> SyncProcessRunner::BuildResultObject() {
   EscapableHandleScope scope(env()->isolate());
 

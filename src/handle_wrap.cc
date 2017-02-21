@@ -25,7 +25,13 @@ void HandleWrap::Ref(const FunctionCallbackInfo<Value>& args) {
     uv_ref(wrap->GetHandle());
 }
 
-
+/**
+ * [HandleWrap::Unref description]
+ * libuv事件循环如果运行在default模式下会一直执行直到不存在激活和引用的handle.
+ * 用户可以对激活的handle解引用来提早结束循环,
+ * 例如在调用uv_timer_start()之后调用uv_unref()
+ * @param args [description]
+ */
 void HandleWrap::Unref(const FunctionCallbackInfo<Value>& args) {
   HandleWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap, args.Holder());

@@ -70,6 +70,7 @@ void ConnectionWrap<WrapType, UVType>::OnConnection(uv_stream_t* handle,
     // Successful accept. Call the onconnection callback in JavaScript land.
     argv[1] = client_obj;
   }
+  //执行onconnection 函数
   wrap_data->MakeCallback(env->onconnection_string(), arraysize(argv), argv);
 }
 

@@ -53,7 +53,10 @@ uv_tty_t* TTYWrap::UVHandle() {
   return &handle_;
 }
 
-
+/**
+ * [TTYWrap::GuessHandleType 判断文件描述符的类型]
+ * @param args [description]
+ */
 void TTYWrap::GuessHandleType(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   int fd = args[0]->Int32Value();

@@ -122,7 +122,12 @@ void TCPWrap::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(wrap);
 }
 
-
+/**
+ * TCP服务器端依次调用socket()、bind()、listen()之后，就会监听指定的socket地址了。
+TCP客户端依次调用socket()、connect()之后就向TCP服务器发送了一个连接请求。
+TCP服务器监听到这个请求之后，就会调用accept()函数取接收请求，这样连接就建立好了。
+之后就可以开始网络I/O操作了，即类同于普通文件的读写I/O操作。
+ */
 TCPWrap::TCPWrap(Environment* env, Local<Object> object, AsyncWrap* parent)
     : ConnectionWrap(env,
                      object,
@@ -175,7 +180,10 @@ void TCPWrap::SetSimultaneousAccepts(const FunctionCallbackInfo<Value>& args) {
 }
 #endif
 
-
+/**
+ * [TCPWrap::Open 打开]
+ * @param args [description]
+ */
 void TCPWrap::Open(const FunctionCallbackInfo<Value>& args) {
   TCPWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap,
@@ -185,7 +193,10 @@ void TCPWrap::Open(const FunctionCallbackInfo<Value>& args) {
   uv_tcp_open(&wrap->handle_, fd);
 }
 
-
+/**
+ * [TCPWrap::Bind 绑定地址函数bind()[服务器使用]]
+ * @param args [description]
+ */
 void TCPWrap::Bind(const FunctionCallbackInfo<Value>& args) {
   TCPWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap,
@@ -221,7 +232,10 @@ void TCPWrap::Bind6(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
-
+/**
+ * [TCPWrap::Listen 服务器listen()]
+ * @param args [description]
+ */
 void TCPWrap::Listen(const FunctionCallbackInfo<Value>& args) {
   TCPWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(&wrap,
@@ -234,7 +248,10 @@ void TCPWrap::Listen(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
-
+/**
+ * [TCPWrap::Connect 如果客户端这时调用connect()发出连接请求，服务器端就会接收到这个请求。]
+ * @param args [description]
+ */
 void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 

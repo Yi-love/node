@@ -220,7 +220,9 @@ class Parser : public AsyncWrap {
     return 0;
   }
 
-
+  /**
+   * 头部解析完成回调
+   */
   HTTP_CB(on_headers_complete) {
     // Arguments for the on-headers-complete javascript callback. This
     // list needs to be kept in sync with the actual argument list for
@@ -357,7 +359,7 @@ class Parser : public AsyncWrap {
     return 0;
   }
 
-
+  //创建http解析
   static void New(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
     http_parser_type type =
@@ -442,7 +444,10 @@ class Parser : public AsyncWrap {
     }
   }
 
-
+  /**
+   * [Reinitialize 重新初始化]
+   * @param args [description]
+   */
   static void Reinitialize(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
 

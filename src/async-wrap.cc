@@ -377,7 +377,7 @@ Local<Value> AsyncWrap::MakeCallback(const Local<Function> cb,
     tick_info->set_index(0);
     return ret;
   }
-
+  //确保了当每次从C++陷入js领域、执行完js代码之后，会执行到诸如process.nextTick()设置的回调函数。
   if (env()->tick_callback_function()->Call(process, 0, nullptr).IsEmpty()) {
     return Local<Value>();
   }

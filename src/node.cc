@@ -3692,17 +3692,17 @@ static void ParseArgs(int* argc,
 
     if (ParseDebugOpt(arg)) {
       // Done, consumed by ParseDebugOpt().
-    } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) {
+    } else if (strcmp(arg, "--version") == 0 || strcmp(arg, "-v") == 0) { //查看版本号
       printf("%s\n", NODE_VERSION);
       exit(0);
-    } else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {
+    } else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-h") == 0) {//查看帮助
       PrintHelp();
       exit(0);
     } else if (strcmp(arg, "--eval") == 0 ||
                strcmp(arg, "-e") == 0 ||
                strcmp(arg, "--print") == 0 ||
                strcmp(arg, "-pe") == 0 ||
-               strcmp(arg, "-p") == 0) {
+               strcmp(arg, "-p") == 0) {  //执行解析
       bool is_eval = strchr(arg, 'e') != nullptr;
       bool is_print = strchr(arg, 'p') != nullptr;
       print_eval = print_eval || is_print;
@@ -3725,7 +3725,7 @@ static void ParseArgs(int* argc,
         }
       }
     } else if (strcmp(arg, "--require") == 0 ||
-               strcmp(arg, "-r") == 0) {
+               strcmp(arg, "-r") == 0) {  //加载依赖模块
       const char* module = argv[index + 1];
       if (module == nullptr) {
         fprintf(stderr, "%s: %s requires an argument\n", argv[0], arg);
@@ -3783,7 +3783,7 @@ static void ParseArgs(int* argc,
       icu_data_dir = arg + 15;
 #endif
     } else if (strcmp(arg, "--expose-internals") == 0 ||
-               strcmp(arg, "--expose_internals") == 0) {
+               strcmp(arg, "--expose_internals") == 0) { //是不是暴露内部模块啊
       // consumed in js
     } else {
       // V8 option.  Pass through as-is.

@@ -277,7 +277,7 @@ class Parser : public AsyncWrap {
       argv[A_STATUS_MESSAGE] = status_message_.ToString(env());
     }
 
-    // VERSION
+    // VERSION   http版本
     argv[A_VERSION_MAJOR] = Integer::New(env()->isolate(), parser_.http_major);
     argv[A_VERSION_MINOR] = Integer::New(env()->isolate(), parser_.http_minor);
 
@@ -289,7 +289,7 @@ class Parser : public AsyncWrap {
     Environment::AsyncCallbackScope callback_scope(env());
 
     Local<Value> head_response =
-        MakeCallback(cb.As<Function>(), arraysize(argv), argv);
+        MakeCallback(cb.As<Function>(), arraysize(argv), argv);//执行回调
 
     if (head_response.IsEmpty()) {
       got_exception_ = true;
@@ -416,7 +416,10 @@ class Parser : public AsyncWrap {
       args.GetReturnValue().Set(ret);
   }
 
-
+  /**
+   * [Finish 完成解析]
+   * @param args [description]
+   */
   static void Finish(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
 
@@ -690,7 +693,10 @@ class Parser : public AsyncWrap {
     have_flushed_ = true;
   }
 
-
+  /**
+   * [Init 初始化]
+   * @param type [description]
+   */
   void Init(enum http_parser_type type) {
     http_parser_init(&parser_, type);
     url_.Reset();
